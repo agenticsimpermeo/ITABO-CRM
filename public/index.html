@@ -303,7 +303,10 @@ select:focus, input:focus { border-color:var(--gold); }
 </div>
 
 <!-- COUNTRY CHIPS -->
-<div class="country-bar" id="countryBar"></div>
+<div style="position:relative;">
+  <div class="country-bar" id="countryBar"></div>
+  <button id="toggleCountryBar" onclick="window.toggleCountries()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#333;border:1px solid var(--border);color:#888;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;z-index:99;">&#9650;</button>
+</div>
 
 <!-- MAIN -->
 <div class="main">

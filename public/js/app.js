@@ -682,6 +682,20 @@ function resetData() {
 window.resetData = resetData;
 
 // ---------------------------------------------------------------------------
+// Toggle country bar
+// ---------------------------------------------------------------------------
+let countriesVisible = true;
+function toggleCountries() {
+  const bar = document.getElementById('countryBar');
+  const btn = document.getElementById('toggleCountryBar');
+  countriesVisible = !countriesVisible;
+  bar.style.display = countriesVisible ? '' : 'none';
+  btn.innerHTML = countriesVisible ? '&#9650;' : '&#9660;';
+  btn.title = countriesVisible ? 'Hide countries' : 'Show countries';
+}
+window.toggleCountries = toggleCountries;
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 init();
