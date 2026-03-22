@@ -233,12 +233,14 @@ function selectLead(id) {
   const l = findLead(id);
   if (!l) return;
   setSelectedLead(l);
-  renderList(); // Update selected state in list
+  renderList();
 
   const panel = document.getElementById('detailPanel');
   const lang = LANG_MAP[l.lingua] || 'en';
   const apps = APP_MAP[l.paese] || ['whatsapp', 'email', 'sms'];
   const phone = (l.telefono || '').replace(/[\s\-\(\)]/g, '');
+  const lid = l.id; // lead id for onclick handlers
+  const lidStr = typeof lid === 'string' ? `'${lid}'` : lid;
 
   const statusOptions = STATUS_OPTIONS.map(s =>
     `<option value="${s.value}" ${l.status === s.value ? 'selected' : ''}>${s.label}</option>`
@@ -250,63 +252,210 @@ function selectLead(id) {
       <div class="detail-sub">${esc(l.citta)}, ${esc(l.paese)} &bull; ${esc(l.tipologia)}</div>
     </div>
 
+    <!-- STATUS + FOLLOW-UP -->
     <div class="detail-section">
       <h3>Status</h3>
-      <select class="status-select" onchange="window.updateStatus('${l.id}', this.value)">${statusOptions}</select>
+      <select class="status-select" onchange="window.updateStatus(${lidStr}, this.value)">${statusOptions}</select>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+        <label style="font-size:12px;color:#888;white-space:nowrap;">Follow-up:</label>
+        <input type="date" style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+          value="${l.followUpDate || ''}" onchange="window.updateFollowUp(${lidStr}, this.value)">
+        <span style="font-size:11px;color:${l.followUpDate && new Date(l.followUpDate) <= new Date() ? 'var(--red)' : '#666'};">
+          ${l.followUpDate ? (new Date(l.followUpDate) <= new Date() ? 'OVERDUE!' : l.followUpDate) : 'Not set'}
+        </span>
+      </div>
     </div>
 
-    <div class="actions">
-      ${phone ? `
-        <a class="action-btn btn-whatsapp" href="https://wa.me/${phone}" target="_blank" onclick="event.stopPropagation();">WhatsApp</a>
-        <button class="action-btn btn-whatsapp-call" onclick="window.openTemplate('whatsapp', '${esc(l.id)}')">WA Template</button>
-      ` : ''}
-      ${l.email1 ? `<button class="action-btn btn-email" onclick="window.openTemplate('email', '${esc(l.id)}')">Email</button>` : ''}
-      ${phone ? `<a class="action-btn btn-sms" href="sms:${phone}" target="_blank">SMS</a>` : ''}
-      <button class="action-btn btn-script" onclick="window.openScript('${esc(l.id)}')">Call Script</button>
-    </div>
-
+    <!-- ACTIVITY LOG -->
     <div class="detail-section">
-      <h3>Contact Info</h3>
-      <div class="detail-row"><span class="label">Email</span><span class="value">${l.email1 ? `<a href="mailto:${esc(l.email1)}">${esc(l.email1)}</a>` : 'N/A'}</span></div>
-      ${l.email2 ? `<div class="detail-row"><span class="label">Email 2</span><span class="value"><a href="mailto:${esc(l.email2)}">${esc(l.email2)}</a></span></div>` : ''}
-      <div class="detail-row"><span class="label">Phone</span><span class="value">${l.telefono || 'N/A'}</span></div>
-      <div class="detail-row"><span class="label">Website</span><span class="value">${l.sito ? `<a href="${esc(l.sito)}" target="_blank">${esc(l.sito)}</a>` : 'N/A'}</span></div>
-      <div class="detail-row"><span class="label">Address</span><span class="value">${esc(l.indirizzo) || 'N/A'}</span></div>
-      ${l.maps ? `<div class="detail-row"><span class="label">Maps</span><span class="value"><a href="${esc(l.maps)}" target="_blank">Open in Maps</a></span></div>` : ''}
-      <div class="detail-row"><span class="label">Rating</span><span class="value">${l.rating ? `\u2605 ${l.rating} (${l.recensioni} reviews)` : 'N/A'}</span></div>
+      <h3>Activity Log</h3>
+      <div style="max-height:150px;overflow-y:auto;margin-bottom:8px;">
+        ${(l.activities || []).slice().reverse().map(a => `
+          <div style="padding:4px 0;border-bottom:1px solid #222;font-size:12px;">
+            <span style="color:var(--gold);">${a.date}</span>
+            <span style="color:#888;margin:0 4px;">|</span>
+            <span style="color:#fff;">${esc(a.action)}</span>
+            ${a.note ? `<span style="color:#666;"> — ${esc(a.note)}</span>` : ''}
+          </div>
+        `).join('') || '<div style="color:#555;font-size:12px;">No activity yet</div>'}
+      </div>
+      <div style="display:flex;gap:6px;">
+        <select id="actType_${lid}" style="background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px;border-radius:4px;font-size:12px;">
+          <option value="WA Call">WA Call</option>
+          <option value="WA Call - No Answer">WA Call - No Answer</option>
+          <option value="WA Message Sent">WA Message Sent</option>
+          <option value="Email Sent">Email Sent</option>
+          <option value="LinkedIn Connect">LinkedIn Connect</option>
+          <option value="LinkedIn Message">LinkedIn Message</option>
+          <option value="IG Follow">IG Follow</option>
+          <option value="FB Follow">FB Follow</option>
+          <option value="Reply Received">Reply Received</option>
+          <option value="Address Confirmed">Address Confirmed</option>
+          <option value="Sample Shipped">Sample Shipped</option>
+          <option value="Sample Delivered">Sample Delivered</option>
+          <option value="Tasting Scheduled">Tasting Scheduled</option>
+          <option value="Tasting Done">Tasting Done</option>
+          <option value="Proforma Sent">Proforma Sent</option>
+          <option value="Payment Received">Payment Received</option>
+          <option value="Note">Note</option>
+        </select>
+        <input type="text" id="actNote_${lid}" placeholder="Details..." style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;">
+        <button class="btn btn-sm btn-gold" onclick="window.logActivity(${lidStr})">Log</button>
+      </div>
     </div>
 
+    <!-- SAMPLE TRACKING -->
+    <div class="detail-section">
+      <h3>Sample Tracking</h3>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;gap:6px;">
+          <input type="text" placeholder="Tracking number" value="${esc(l.tracking?.number || '')}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveTracking(${lidStr},'number',this.value)">
+          <input type="text" placeholder="Carrier (DHL, FedEx...)" value="${esc(l.tracking?.carrier || '')}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveTracking(${lidStr},'carrier',this.value)">
+        </div>
+        <div style="display:flex;gap:6px;">
+          <input type="date" value="${l.tracking?.shipped || ''}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveTracking(${lidStr},'shipped',this.value)">
+          <input type="date" value="${l.tracking?.delivery || ''}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveTracking(${lidStr},'delivery',this.value)">
+        </div>
+        <div style="font-size:11px;color:#666;">Shipped date | Expected delivery</div>
+      </div>
+    </div>
+
+    <!-- DECISION MAKER -->
+    <div class="detail-section">
+      <h3>Decision Maker ${l.contacts?.length ? '(' + l.contacts.length + ')' : '<span style="color:#666;">- Add via Apollo</span>'}</h3>
+      <div>
+        ${(l.contacts || []).map((c, ci) => `
+          <div style="background:#222;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:700;color:#fff;">${esc(c.name)}</div>
+                <div style="font-size:12px;color:var(--gold);">${esc(c.title)}</div>
+              </div>
+              <button class="btn btn-sm btn-outline" onclick="window.removeContact(${lidStr},${ci})" style="color:var(--red);border-color:var(--red);">x</button>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+              ${c.email ? `<button class="action-btn btn-email" style="padding:4px 8px;font-size:11px;" onclick="window.openTemplate('email',${lidStr})">Email</button>` : ''}
+              ${c.phone ? `<a href="https://wa.me/${c.phone.replace(/[^0-9]/g, '')}" target="_blank" class="action-btn btn-whatsapp" style="padding:4px 8px;font-size:11px;text-decoration:none;">WhatsApp</a>` : ''}
+              ${c.linkedin ? `<a href="${c.linkedin}" target="_blank" class="action-btn" style="padding:4px 8px;font-size:11px;background:#0A66C2;color:#fff;text-decoration:none;">LinkedIn</a>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="dm_name_${lid}" placeholder="Name" style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:6px 8px;border-radius:4px;font-size:12px;">
+        <input type="text" id="dm_title_${lid}" placeholder="Job Title" style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:6px 8px;border-radius:4px;font-size:12px;">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <input type="text" id="dm_email_${lid}" placeholder="Email" style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:6px 8px;border-radius:4px;font-size:12px;">
+        <input type="text" id="dm_phone_${lid}" placeholder="Phone" style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:6px 8px;border-radius:4px;font-size:12px;">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <input type="text" id="dm_linkedin_${lid}" placeholder="LinkedIn URL" style="flex:2;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:6px 8px;border-radius:4px;font-size:12px;">
+        <button class="btn btn-sm btn-gold" onclick="window.addContact(${lidStr})">+ Add</button>
+      </div>
+    </div>
+
+    <!-- MESSAGING ACTIONS -->
+    <div class="detail-section">
+      <h3>Message (${apps.join(' / ').toUpperCase()})</h3>
+      <div class="actions">
+        ${apps.includes('whatsapp') && phone ? `
+          <button class="action-btn btn-whatsapp" onclick="window.openTemplate('whatsapp',${lidStr})">WhatsApp</button>
+          <a class="action-btn btn-whatsapp-call" href="https://wa.me/${phone.replace('+', '')}" target="_blank" style="text-decoration:none;">WA Call</a>
+          <a class="action-btn" style="background:#00BFA5;color:#fff;text-decoration:none;" href="https://wa.me/${phone.replace('+', '')}" target="_blank">WA Video</a>
+        ` : ''}
+        ${apps.includes('telegram') && phone ? `
+          <button class="action-btn btn-telegram" onclick="window.openTemplate('telegram',${lidStr})">Telegram</button>
+        ` : ''}
+        ${apps.includes('kakao') ? `
+          <a class="action-btn btn-kakao" href="https://open.kakao.com/" target="_blank" style="text-decoration:none;">KakaoTalk</a>
+        ` : ''}
+        ${l.email1 ? `
+          <button class="action-btn btn-email" onclick="window.openTemplate('email',${lidStr})">Email</button>
+        ` : ''}
+        ${phone ? `
+          <button class="action-btn btn-sms" onclick="window.openTemplate('sms',${lidStr})">SMS</button>
+        ` : ''}
+        <a class="action-btn" style="background:#00897B;color:#fff;text-decoration:none;" href="https://meet.google.com/new" target="_blank">Google Meet</a>
+        <a class="action-btn" style="background:#2D8CFF;color:#fff;text-decoration:none;" href="https://zoom.us/start/videomeeting" target="_blank">Zoom</a>
+        <button class="action-btn btn-script" onclick="window.openScript(${lidStr})">CALL SCRIPT</button>
+      </div>
+    </div>
+
+    <!-- SOCIAL MEDIA -->
+    <div class="detail-section">
+      <h3>Social Media</h3>
+      <div class="actions">
+        <a href="${l.social?.linkedin || 'https://www.linkedin.com/search/results/companies/?keywords=' + encodeURIComponent(l.azienda)}" target="_blank"
+           class="action-btn" style="background:#0A66C2;color:#fff;text-decoration:none;padding:8px 14px;">
+          ${l.social?.linkedin ? 'LinkedIn' : 'LI Search'}
+        </a>
+        <a href="${l.social?.instagram || 'https://www.instagram.com/explore/search/keyword/?q=' + encodeURIComponent(l.azienda)}" target="_blank"
+           class="action-btn" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;text-decoration:none;padding:8px 14px;">
+          ${l.social?.instagram ? 'Instagram' : 'IG Search'}
+        </a>
+        <a href="${l.social?.facebook || 'https://www.facebook.com/search/pages/?q=' + encodeURIComponent(l.azienda)}" target="_blank"
+           class="action-btn" style="background:#1877F2;color:#fff;text-decoration:none;padding:8px 14px;">
+          ${l.social?.facebook ? 'Facebook' : 'FB Search'}
+        </a>
+        ${l.maps ? `<a href="${esc(l.maps)}" target="_blank" class="action-btn btn-maps" style="text-decoration:none;">Maps</a>` : ''}
+        ${l.sito ? `<a href="${esc(l.sito)}" target="_blank" class="action-btn btn-web" style="text-decoration:none;">Web</a>` : ''}
+      </div>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="width:24px;text-align:center;color:#0A66C2;font-weight:bold;font-size:12px;">in</span>
+          <input type="text" placeholder="LinkedIn URL" value="${esc(l.social?.linkedin || '')}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveSocial(${lidStr},'linkedin',this.value)">
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="width:24px;text-align:center;color:#E4405F;font-weight:bold;font-size:12px;">IG</span>
+          <input type="text" placeholder="Instagram URL" value="${esc(l.social?.instagram || '')}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveSocial(${lidStr},'instagram',this.value)">
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="width:24px;text-align:center;color:#1877F2;font-weight:bold;font-size:12px;">fb</span>
+          <input type="text" placeholder="Facebook URL" value="${esc(l.social?.facebook || '')}"
+            style="flex:1;background:#2a2a2a;border:1px solid #333;color:#e0e0e0;padding:5px 8px;border-radius:4px;font-size:12px;"
+            onchange="window.saveSocial(${lidStr},'facebook',this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPANY INFO -->
+    <div class="detail-section">
+      <h3>Company Info</h3>
+      <div class="detail-row"><span class="label">Phone</span><span class="value">${esc(l.telefono) || 'N/A'}</span></div>
+      <div class="detail-row"><span class="label">Email 1</span><span class="value">${l.email1 ? `<span style="color:var(--gold);cursor:pointer;" onclick="window.openTemplate('email',${lidStr})">${esc(l.email1)}</span>` : 'N/A'}</span></div>
+      ${l.email2 ? `<div class="detail-row"><span class="label">Email 2</span><span class="value"><span style="color:var(--gold);">${esc(l.email2)}</span></span></div>` : ''}
+      ${l.email3 ? `<div class="detail-row"><span class="label">Email 3</span><span class="value"><span style="color:var(--gold);">${esc(l.email3)}</span></span></div>` : ''}
+      <div class="detail-row"><span class="label">Address</span><span class="value">${esc(l.indirizzo) || 'N/A'}</span></div>
+      <div class="detail-row"><span class="label">Website</span><span class="value">${l.sito ? `<a href="${esc(l.sito)}" target="_blank">${esc(l.sito)}</a>` : 'N/A'}</span></div>
+      <div class="detail-row"><span class="label">Type</span><span class="value">${esc(l.tipologia)}</span></div>
+      <div class="detail-row"><span class="label">Rating</span><span class="value">${l.rating ? '\u2605 ' + l.rating + ' (' + l.recensioni + ' reviews)' : 'N/A'}</span></div>
+      <div class="detail-row"><span class="label">FOB Price</span><span class="value">\u20ac${l.fob || 3.8}</span></div>
+      <div class="detail-row"><span class="label">Final Price</span><span class="value">\u20ac${l.prezzoFinale || ''}</span></div>
+    </div>
+
+    <!-- NOTES -->
     <div class="detail-section">
       <h3>Notes</h3>
-      <textarea class="notes-area" onchange="window.updateNotes('${l.id}', this.value)" placeholder="Add notes...">${esc(l.notes)}</textarea>
+      <textarea class="notes-area" placeholder="Add notes about this contact..." onchange="window.updateNotes(${lidStr}, this.value)">${esc(l.notes)}</textarea>
     </div>
 
-    <div class="detail-section">
-      <h3>Follow-up</h3>
-      <input type="date" value="${l.followUpDate || ''}" onchange="window.updateFollowUp('${l.id}', this.value)" style="background:#2a2a2a;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;width:100%;">
-    </div>
-
+    <!-- LAST CONTACT -->
     <div class="detail-section">
       <h3>Last Contact</h3>
-      <div class="detail-row"><span class="label">Date</span><span class="value">${l.lastContact || 'Never'}</span></div>
-    </div>
-
-    <div class="detail-section">
-      <h3>Log Activity</h3>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <select id="actType_${l.id}" style="background:#2a2a2a;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;flex:1;">
-          <option value="call">Call</option>
-          <option value="email">Email</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="meeting">Meeting</option>
-          <option value="note">Note</option>
-        </select>
-        <input type="text" id="actNote_${l.id}" placeholder="Details..." style="background:#2a2a2a;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;flex:2;">
-        <button class="btn btn-gold btn-sm" onclick="window.logActivity('${l.id}')">Log</button>
-      </div>
-      ${(l.activities || []).slice(-5).reverse().map(a =>
-        `<div style="font-size:12px;color:#888;padding:4px 0;border-bottom:1px solid #222;">${a.date} ${a.time || ''} — <b>${a.action}</b>: ${esc(a.note || '')}</div>`
-      ).join('')}
+      <input type="date" class="status-select" value="${l.lastContact || ''}" onchange="window.updateLastContact(${lidStr}, this.value)">
     </div>
   `;
 }
@@ -356,6 +505,59 @@ async function logActivityFn(leadId) {
   showToast('Activity logged', 'success', 1500);
 }
 window.logActivity = logActivityFn;
+
+async function updateLastContactFn(id, date) {
+  await updateLead(id, { lastContact: date });
+  selectLead(id);
+}
+window.updateLastContact = updateLastContactFn;
+
+async function saveTrackingFn(leadId, field, value) {
+  const lead = findLead(leadId);
+  if (!lead) return;
+  if (!lead.tracking) lead.tracking = {};
+  lead.tracking[field] = value;
+  await updateLead(leadId, { tracking: lead.tracking });
+}
+window.saveTracking = saveTrackingFn;
+
+async function saveSocialFn(leadId, platform, url) {
+  const lead = findLead(leadId);
+  if (!lead) return;
+  if (!lead.social) lead.social = {};
+  lead.social[platform] = url.trim();
+  await updateLead(leadId, { social: lead.social });
+  selectLead(leadId);
+}
+window.saveSocial = saveSocialFn;
+
+async function addContactFn(leadId) {
+  const lead = findLead(leadId);
+  if (!lead) return;
+  const name = document.getElementById(`dm_name_${leadId}`)?.value?.trim();
+  const title = document.getElementById(`dm_title_${leadId}`)?.value?.trim();
+  const email = document.getElementById(`dm_email_${leadId}`)?.value?.trim();
+  const phone = document.getElementById(`dm_phone_${leadId}`)?.value?.trim();
+  const linkedin = document.getElementById(`dm_linkedin_${leadId}`)?.value?.trim();
+  if (!name) { showToast('Name is required', 'warning'); return; }
+  if (!lead.contacts) lead.contacts = [];
+  lead.contacts.push({ name, title, email, phone, linkedin });
+  saveToDB();
+  selectLead(leadId);
+  showToast('Contact added', 'success', 1500);
+}
+window.addContact = addContactFn;
+
+function removeContactFn(leadId, contactIdx) {
+  if (!confirm('Remove this contact?')) return;
+  const lead = findLead(leadId);
+  if (!lead || !lead.contacts) return;
+  lead.contacts.splice(contactIdx, 1);
+  saveToDB();
+  selectLead(leadId);
+  showToast('Contact removed', 'info', 1500);
+}
+window.removeContact = removeContactFn;
 
 // ---------------------------------------------------------------------------
 // Template modal
