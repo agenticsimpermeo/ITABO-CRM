@@ -1,1 +1,8 @@
 .vercel
+node_modules/
+.env*
+apollo_batches/*.csv
+leads_data.json
+*.log
+*.original.html
+public/js/data.js
